@@ -1,0 +1,42 @@
+- name: Disable C-state for all CPUs
+  command: |
+    echo 'options processor max_cstate=1' >> /etc/default/grub
+  register: disable_cstate_result
+  ignore_errors: true  # ignore errors for comlete
+  changed_when: disable_cstate_result.rc == 0  # force changed, if return 0
+
+- name: Check result of disabling C-state
+  debug:
+    msg: "Disable C-state command executed successfully."
+  when: disable_cstate_result.rc == 0
+
+- name: Check for errors in disabling C-state
+  debug:
+    msg: "Error disabling C-state: {{ disable_cstate_result.stderr }}"
+  when: disable_cstate_result.rc != 0
+
+- name: Update grub configuration
+  command: update-grub
+  register: update_grub_result
+  ignore_errors: true  # ignore errors for comlete
+
+- name: Check result of updating grub
+  debug:
+    msg: "Grub updated successfully."
+  when: update_grub_result.rc == 0
+
+- name: Check for errors in updating grub
+  debug:
+    msg: "Error updating grub: {{ update_grub_result.stderr }}"
+  when: update_grub_result.rc != 0
+
+- name: Switch CPU operation to performance mode
+  ansible.builtin.shell: |
+    for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
+      echo "performance" > "$cpu";
+    done
+  register: switch_cpu_mode
+  failed_when: switch_cpu_mode.rc != 0
+  when: switch_cpu_mode is not skipped
+  changed_when: switch_cpu_mode.rc == 0
+  ignore_errors: true

@@ -1,0 +1,21 @@
+- name: StartOperation
+  hosts: test
+  become: yes
+  remote_user: ubuntu
+
+  vars:
+    sdisk_disk: "xvdb"
+    sdisk_name: "sdisk_crypt"
+    adjacent_partition: "sda"
+
+  roles:
+    - start
+
+  tasks:
+    - name: Display CPU Information
+      command: lscpu
+      register: cpu_info
+
+    - name: Display CPU Information
+      debug:
+        var: cpu_info.stdout_lines

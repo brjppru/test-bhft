@@ -1,0 +1,55 @@
+---
+- name: rroot disk name
+  ansible.builtin.shell: |
+   fdisk -l | grep -E '^(Devi|/dev)' | sort -nk2,2  |grep -B1 -A1 -w `findmnt -n -o SOURCE /` >/tmp/disks;  if [[ `wc -l /tmp/disks |awk '{print $1}'` -gt 1 && `wc -l /tmp/disks |awk '{print $1}'` -ne 3 ]]; then sed '1!D' /tmp/disks; elif [[ `wc -l /tmp/disks |awk '{print $1}'` -eq 3 ]]; then sed '3!D' /tmp/disks; fi |awk '{print $1}'|grep -o '[^/]*$'
+  args:
+    executable: /bin/bash
+  register: rroot_disk
+  ignore_errors: true
+
+- name: Output result
+  debug:
+    var: rroot_disk.stdout
+
+- name: Create keyfile
+  ansible.builtin.shell: |
+    openssl genrsa -out /root/keyfile_rroot; chmod 0400 /root/keyfile_rroot
+  ignore_errors: true
+  when: rroot_disk.stdout | length > 0
+
+- name: Encrypt rroot disk
+  ansible.builtin.shell: |
+    cryptsetup -q luksFormat /dev/{{ rroot_disk.stdout }} --key-file /root/keyfile_rroot
+  ignore_errors: true
+  when: rroot_disk.stdout | length > 0
+
+- name: Open encrypted rroot disk
+  ansible.builtin.shell: |
+    cryptsetup luksOpen /dev/{{ rroot_disk.stdout }} {{ rroot_disk.stdout }} --key-file /root/keyfile_rroot
+  ignore_errors: true
+  register: rroot_disk_status
+  when: rroot_disk.stdout | length > 0
+
+- name: Format the encrypted rroot disk
+  command: mkfs.ext4 /dev/mapper/{{ rroot_disk.stdout }}
+  when: rroot_disk.stdout | length > 0
+
+- name: Ensure the mount point exists
+  file:
+    path: /mnt/{{ rrot_disk.stdout }}
+    state: directory
+  when: rroot_disk.stdout | length > 0
+
+- name: Mount the encrypted second disk
+  mount:
+    path: /mnt/{{ rroot_disk.stdout }}
+    src: /dev/mapper/{{ rroot_disk.stdout }}
+    fstype: ext4
+    state: mounted
+  when: rroot_disk.stdout | length > 0
+
+- name: Add crypttab
+  ansible.builtin.shell: |
+    printf "{{ rroot_disk.stdout }} /dev/{{ rroot_disk.stdout }}  /root/keyfile luks\n">/etc/crypttab
+  when: rroot_disk.stdout | length > 0
+

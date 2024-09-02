@@ -1,0 +1,5 @@
+#!/bin/sh
+
+exit 0
+
+ansible-playbook -vv --user=ubuntu -i inventory.ini start.yaml

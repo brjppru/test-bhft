@@ -1,0 +1,37 @@
+---
+- name: Create keyfile
+  ansible.builtin.shell: |
+    openssl genrsa -out /root/keyfile; chmod 0400 /root/keyfile
+  ignore_errors: true
+
+- name: Encrypt second disk
+  ansible.builtin.shell: |
+    cryptsetup -q luksFormat /dev/{{ sdisk_disk }} --key-file /root/keyfile
+  ignore_errors: true
+
+- name: Open encrypted second disk
+  ansible.builtin.shell: |
+    cryptsetup luksOpen /dev/{{ sdisk_disk }} {{ sdisk_name }} --key-file /root/keyfile
+  ignore_errors: true
+  register: second_disk_status
+
+- name: Format the encrypted second disk
+  command: mkfs.ext4 /dev/mapper/{{ sdisk_name }}
+  when: second_disk_status.rc == 0 
+
+- name: Ensure the mount point exists
+  file:
+    path: /mnt/{{ sdisk_name }}
+    state: directory
+
+- name: Mount the encrypted second disk
+  mount:
+    path: /mnt/{{ sdisk_name }}
+    src: /dev/mapper/{{ sdisk_name }}
+    fstype: ext4
+    state: mounted
+
+- name: Add crypttab
+  ansible.builtin.shell: |
+    printf "{{ sdisk_name }} /dev/{{ sdisk_disk }}  /root/keyfile luks\n">/etc/crypttab
+

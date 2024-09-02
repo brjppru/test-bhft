@@ -1,0 +1,19 @@
+- name: Rename systemd interface to net0
+  ansible.builtin.shell: |
+    printf "[Match]\nPermanentMACAddress={{ ansible_default_ipv4.macaddress }}\n\n[Link]\nName=net0\n">/etc/systemd/network/10-net-internal.link
+
+- name: Netplan rename interface
+  replace:
+    path: /etc/netplan/50-cloud-init.yaml
+    regexp: '{{ ansible_default_ipv4.interface }}'
+    replace: 'net0'
+
+- name: Netplan apply
+  ansible.builtin.shell: netplan apply
+  register: rename_interface
+  failed_when: rename_interface.rc != 0
+
+
+- name: Display renamed network interface
+  ansible.builtin.debug:
+    msg: "Renamed network interface: net0"

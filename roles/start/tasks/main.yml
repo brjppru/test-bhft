@@ -1,0 +1,32 @@
+# root encrypt check partition
+- name: rroot partition type
+  ansible.builtin.shell: |
+   fdisk -l | grep -E '^(Devi|/dev)' | sort -nk2,2  |grep -B1 -A1 -w `findmnt -n -o SOURCE /` >/tmp/disks;  if [[ `wc -l /tmp/disks |awk '{print $1}'` -gt 1 && `wc -l /tmp/disks |awk '{print $1}'` -ne 3 ]]; then sed '1!D' /tmp/disks; elif [[ `wc -l /tmp/disks |awk '{print $1}'` -eq 3 ]]; then sed '3!D' /tmp/disks; fi |awk '{print $1}'|grep -o '[^/]*$'>/tmp/disk;fdisk -l  |grep `cat /tmp/disk` | awk '{print $6 " " $7 }'
+  args:
+    executable: /bin/bash
+  register: rroot_part_type
+  ignore_errors: true
+
+- name: Output result partition
+  debug:
+    var: rroot_part_type.stdout
+  register: rroot_part_check
+
+# Check BareMetall or VM
+- name: Check if scaling governor
+  stat:
+    path: /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+  register: scaling_governor_file
+
+- name: Output result governor
+  debug:
+    var: scaling_governor_file.stat.exists
+  register: scaling_governor
+
+- include_tasks: encrypt_disks.yml
+- include_tasks: encrypt_disks_rroot.yml
+  when: rroot_part_type.stdout == 'Linux filesystem'
+- include_tasks: cpu_configuration.yml
+  when: scaling_governor|bool == true
+- include_tasks: network_configuration.yml
+

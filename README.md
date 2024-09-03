@@ -32,6 +32,12 @@ see cpu_configuration.yml
 >    -Implement the procedure of encrypting the second disk in the system (where there is no root partition) (partition name should be specified in the inventory).
 >    -Implement a procedure to encrypt the partition that is present on the disk next to the root partition.
 
+upd2:
+
+Рома, привет, Нужно переделать с использованием luks
+
+ok
+
 see encrypt_disks_rroot.yml
 see encrypt_disks.yml
 

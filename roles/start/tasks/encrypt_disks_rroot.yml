@@ -9,25 +9,21 @@
 
 - name: Output result
   debug:
-    var: rroot_disk.stdout
-
+    var: rroot_disk.stdout  
+  
 - name: Create keyfile
-  ansible.builtin.shell: |
-    openssl genrsa -out /root/keyfile_rroot; chmod 0400 /root/keyfile_rroot
+  community.crypto.openssl_privatekey:
+    path: /root/keyfile_rroot
   ignore_errors: true
   when: rroot_disk.stdout | length > 0
 
-- name: Encrypt rroot disk
-  ansible.builtin.shell: |
-    cryptsetup -q luksFormat /dev/{{ rroot_disk.stdout }} --key-file /root/keyfile_rroot
+- name: Create/Open encrypt rroot disk
+  community.crypto.luks_device:
+    device: "/dev/{{ rroot_disk.stdout }}"
+    state: "opened"
+    name: "{{ rroot_disk.stdout }}"
+    keyfile: "/root/keyfile_rroot"
   ignore_errors: true
-  when: rroot_disk.stdout | length > 0
-
-- name: Open encrypted rroot disk
-  ansible.builtin.shell: |
-    cryptsetup luksOpen /dev/{{ rroot_disk.stdout }} {{ rroot_disk.stdout }} --key-file /root/keyfile_rroot
-  ignore_errors: true
-  register: rroot_disk_status
   when: rroot_disk.stdout | length > 0
 
 - name: Format the encrypted rroot disk
